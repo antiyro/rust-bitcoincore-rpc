@@ -1303,7 +1303,6 @@ impl Client {
 }
 
 impl RpcApi for Client {
-    /// Call an `cmd` rpc with given `args` list
     fn call<T: for<'a> serde::de::Deserialize<'a>>(
         &self,
         cmd: &str,
@@ -1313,16 +1312,29 @@ impl RpcApi for Client {
             .iter()
             .map(|a| {
                 let json_string = serde_json::to_string(a)?;
-                serde_json::value::RawValue::from_string(json_string) // we can't use to_raw_value here due to compat with Rust 1.29
+                serde_json::value::RawValue::from_string(json_string)
             })
             .map(|a| a.map_err(|e| Error::Json(e)))
             .collect::<Result<Vec<_>>>()?;
+
         let req = self.client.build_request(&cmd, &raw_args);
+
         if log_enabled!(Debug) {
             debug!(target: "bitcoincore_rpc", "JSON-RPC request: {} {}", cmd, serde_json::Value::from(args));
         }
 
         let resp = self.client.send_request(req).map_err(Error::from);
+
+        // Log the response.
+        match &resp {
+            Ok(response) => {
+                println!("Response: {:?}", response); // or use debug! if you are using the log crate
+            }
+            Err(error) => {
+                println!("Error: {:?}", error); // or use debug! if you are using the log crate
+            }
+        }
+
         log_response(cmd, &resp);
         Ok(resp?.result()?)
     }
